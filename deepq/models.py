@@ -1,6 +1,5 @@
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
-import numpy as np
 
 def _mlp_branching(hiddens_common, 
         hiddens_actions, 

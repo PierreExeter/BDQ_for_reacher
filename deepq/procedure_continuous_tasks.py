@@ -5,7 +5,7 @@ import tempfile
 import zipfile
 import common.tf_util as U
 import logger
-from common.schedules import ConstantSchedule, LinearSchedule, PiecewiseSchedule
+from common.schedules import ConstantSchedule, LinearSchedule
 import deepq
 from deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 import time
