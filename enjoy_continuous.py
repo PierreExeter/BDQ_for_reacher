@@ -3,15 +3,11 @@ import numpy as np
 import time
 import deepq
 
-# Enter environment name and numb sub-actions per joint 
 env_name = 'Reacher-v1'
-num_actions_pad = 33 # ensure it's set correctly to the value used during training   
-model_file_name = '2019-09-05_17-43-21_Reacher-v1.pkl'
-
-
-
 env = gym.make(env_name)
-print("model_file_name") 
+num_actions_pad = 33 # number of subaction per joints. Ensure it's set correctly to the value used during training   
+
+model_file_name = '2019-09-05_17-52-24_Reacher-v1.pkl'
 act = deepq.load("trained_models/{}".format(model_file_name))
 
 num_action_dims = env.action_space.shape[0] 
