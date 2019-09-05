@@ -234,10 +234,10 @@ def build_train(make_obs_ph, q_func, num_actions, num_action_streams, batch_size
         mean_next_q_values /= num_action_streams
         target_q_values = [rew_t_ph + gamma * mean_next_q_values] * num_action_streams # TODO better?
 
-        if optimizer_name == "Adam":
-            optimizer = tf.train.AdamOptimizer(learning_rate)
-        else:
-            assert False, 'unsupported optimizer ' + str(optimizer_name)
+        # if optimizer_name == "Adam":
+        optimizer = tf.train.AdamOptimizer(learning_rate)
+        # else:
+            # assert False, 'unsupported optimizer ' + str(optimizer_name)
 
         # if loss_type == "L2":
         loss_function = tf.square
