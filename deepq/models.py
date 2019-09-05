@@ -37,38 +37,23 @@ def _mlp_branching(hiddens_common, hiddens_actions, hiddens_value, independent, 
                             action_out = layers.fully_connected(action_out, num_outputs=hidden, activation_fn=tf.nn.relu)    
                         action_scores = layers.fully_connected(action_out, num_outputs=num_actions//num_action_branches, activation_fn=None)
                         # dueling
-                        if aggregator == 'reduceLocalMean':
-                            action_scores_mean = tf.reduce_mean(action_scores, 1)
-                            total_action_scores.append(action_scores - tf.expand_dims(action_scores_mean, 1))
-                        elif aggregator == 'reduceLocalMax':
-                            action_scores_max = tf.reduce_max(action_scores, 1)
-                            total_action_scores.append(action_scores - tf.expand_dims(action_scores_max, 1))
-                        else:
-                            total_action_scores.append(action_scores)
+                        # aggregator = 'reduceLocalMean':
+                        action_scores_mean = tf.reduce_mean(action_scores, 1)
+                        total_action_scores.append(action_scores - tf.expand_dims(action_scores_mean, 1))
                 elif distributed_single_stream: # TODO better: implementation of single-stream case
                     action_out = out
                     for hidden in hiddens_actions:
                         action_out = layers.fully_connected(action_out, num_outputs=hidden, activation_fn=tf.nn.relu)    
                     action_scores = layers.fully_connected(action_out, num_outputs=num_actions, activation_fn=None)
                     # dueling
-                    if aggregator == 'reduceLocalMean':
-                        total_action_scores = []
-                        for action_stream in range(num_action_branches):
-                            # Slice action values (or advantages) of each action dimension and locally subtract their mean
-                            sliced_actions_of_dim = tf.slice(action_scores, [0,action_stream*num_actions//num_action_branches], [-1,num_actions//num_action_branches])
-                            sliced_actions_mean = tf.reduce_mean(sliced_actions_of_dim, 1)
-                            sliced_actions_centered = sliced_actions_of_dim - tf.expand_dims(sliced_actions_mean, 1)
-                            total_action_scores.append(sliced_actions_centered)
-                    elif aggregator == 'reduceLocalMax':
-                        total_action_scores = []
-                        for action_stream in range(num_action_branches):
-                            # Slice action values (or advantages) of each action dimension and locally subtract their max
-                            sliced_actions_of_dim = tf.slice(action_scores, [0,action_stream*num_actions//num_action_branches], [-1,num_actions//num_action_branches])
-                            sliced_actions_max = tf.reduce_max(sliced_actions_of_dim, 1)
-                            sliced_actions_centered = sliced_actions_of_dim - tf.expand_dims(sliced_actions_max, 1)
-                            total_action_scores.append(sliced_actions_centered)
-                    else:             
-                        total_action_scores = action_scores
+                    # aggregator = 'reduceLocalMean':
+                    total_action_scores = []
+                    for action_stream in range(num_action_branches):
+                        # Slice action values (or advantages) of each action dimension and locally subtract their mean
+                        sliced_actions_of_dim = tf.slice(action_scores, [0,action_stream*num_actions//num_action_branches], [-1,num_actions//num_action_branches])
+                        sliced_actions_mean = tf.reduce_mean(sliced_actions_of_dim, 1)
+                        sliced_actions_centered = sliced_actions_of_dim - tf.expand_dims(sliced_actions_mean, 1)
+                        total_action_scores.append(sliced_actions_centered)
             else:
                 if (not distributed_single_stream or num_action_branches == 1):
                     total_action_scores = []
@@ -78,14 +63,9 @@ def _mlp_branching(hiddens_common, hiddens_actions, hiddens_value, independent, 
                             action_out = layers.fully_connected(action_out, num_outputs=hidden, activation_fn=tf.nn.relu)    
                         action_scores = layers.fully_connected(action_out, num_outputs=num_actions//num_action_branches, activation_fn=None)
                         # dueling
-                        if aggregator == 'reduceLocalMean':
-                            action_scores_mean = tf.reduce_mean(action_scores, 1)
-                            total_action_scores.append(action_scores - tf.expand_dims(action_scores_mean, 1))
-                        elif aggregator == 'reduceLocalMax':
-                            action_scores_max = tf.reduce_max(action_scores, 1)
-                            total_action_scores.append(action_scores - tf.expand_dims(action_scores_max, 1))
-                        else:
-                            total_action_scores.append(action_scores)
+                        # aggregator = 'reduceLocalMean':
+                        action_scores_mean = tf.reduce_mean(action_scores, 1)
+                        total_action_scores.append(action_scores - tf.expand_dims(action_scores_mean, 1))
                 elif distributed_single_stream: # TODO better: implementation of single-stream case    
                     pass 
         
@@ -96,23 +76,10 @@ def _mlp_branching(hiddens_common, hiddens_actions, hiddens_value, independent, 
                 for hidden in hiddens_value:
                     state_out = layers.fully_connected(state_out, num_outputs=hidden, activation_fn=tf.nn.relu)
                 state_score = layers.fully_connected(state_out, num_outputs=1, activation_fn=None)
-            if aggregator == 'reduceLocalMean': 
-                # Local centering wrt branch's mean value has already been done
-                action_scores_adjusted = total_action_scores
-            elif aggregator == 'reduceGlobalMean': 
-                action_scores_mean = sum(total_action_scores) / num_action_branches
-                action_scores_adjusted = total_action_scores - tf.expand_dims(action_scores_mean, 1)
-            elif aggregator == 'reduceLocalMax':
-                # Local max-reduction has already been done       
-                action_scores_adjusted = total_action_scores        
-            elif aggregator == 'reduceGlobalMax':
-                assert False, 'not implemented'
-                action_scores_max = max(total_action_scores)
-                action_scores_adjusted = total_action_scores - tf.expand_dims(action_scores_max, 1)
-            elif aggregator == 'naive':
-                action_scores_adjusted = total_action_scores 
-            else:
-                assert (aggregator in ['reduceLocalMean','reduceGlobalMean','naive','reduceLocalMax','reduceGlobalMax']), 'aggregator method is not supported' 
+            # aggregator = 'reduceLocalMean': 
+            # Local centering wrt branch's mean value has already been done
+            action_scores_adjusted = total_action_scores
+            
             return [state_score + action_score_adjusted for action_score_adjusted in action_scores_adjusted]
 
         elif independent and num_action_branches > 1:               
@@ -124,19 +91,8 @@ def _mlp_branching(hiddens_common, hiddens_actions, hiddens_value, independent, 
                         state_out = layers.fully_connected(state_out, num_outputs=hidden, activation_fn=tf.nn.relu)
                     state_score = layers.fully_connected(state_out, num_outputs=1, activation_fn=None)
                     total_state_scores.append(state_score)
-                if aggregator == 'reduceLocalMean': 
-                    action_scores_adjusted = total_action_scores # local centering wrt branch's mean value has already been done
-                elif aggregator == 'reduceGlobalMean': 
-                    action_scores_mean = sum(total_action_scores) / num_action_branches
-                    action_scores_adjusted = total_action_scores - tf.expand_dims(action_scores_mean, 1)
-                elif aggregator == 'reduceLocalMax':        
-                    action_scores_adjusted = total_action_scores # local max-reduction has already been done        
-                elif aggregator == 'reduceGlobalMax':
-                    assert False, 'Not implemented!'
-                    action_scores_max = max(total_action_scores)
-                    action_scores_adjusted = total_action_scores - tf.expand_dims(action_scores_max, 1)
-                elif aggregator == 'naive':
-                    action_scores_adjusted = total_action_scores  
+                # aggregator = 'reduceLocalMean': 
+                action_scores_adjusted = total_action_scores # local centering wrt branch's mean value has already been done
 
                 q_values_out = []
                 num_actions_pad = num_actions//num_action_branches
