@@ -191,8 +191,8 @@ def build_train(make_obs_ph, q_func, num_actions, num_action_streams, batch_size
         a bunch of functions to print debug data like q_values.
     """
 
-    assert independent and losses_version == 4 or not independent, 'independent needs to be used along with loss v4'
-    assert independent and target_version == "indep" or not independent, 'independent needs to be used along with independent TD targets'
+    # assert independent and losses_version == 4 or not independent, 'independent needs to be used along with loss v4'
+    # assert independent and target_version == "indep" or not independent, 'independent needs to be used along with independent TD targets'
 
     act_f = build_act(make_obs_ph, q_func, num_actions, num_action_streams, scope=scope, reuse=reuse)
 
@@ -225,37 +225,17 @@ def build_train(make_obs_ph, q_func, num_actions, num_action_streams, batch_size
             selected_a = tf.squeeze(tf.slice(act_t_ph, [0, dim], [batch_size, 1])) # TODO better?
             q_values.append(tf.reduce_sum(tf.one_hot(selected_a, num_actions_pad) * q_t[dim], axis=1))
         
-        if target_version == "indep":
-            target_q_values = []
-            for dim in range(num_action_streams):
-                selected_a = tf.argmax(selection_q_tp1[dim], axis=1)
-                selected_q = tf.reduce_sum(tf.one_hot(selected_a, num_actions_pad) * q_tp1[dim], axis=1)
-                masked_selected_q = (1.0 - done_mask_ph) * selected_q
-                target_q = rew_t_ph + gamma * masked_selected_q
-                target_q_values.append(target_q)
-        elif target_version == "max":
-            for dim in range(num_action_streams):
-                selected_a = tf.argmax(selection_q_tp1[dim], axis=1)
-                selected_q = tf.reduce_sum(tf.one_hot(selected_a, num_actions_pad) * q_tp1[dim], axis=1) 
-                masked_selected_q = (1.0 - done_mask_ph) * selected_q
-                if dim == 0:
-                    max_next_q_values = masked_selected_q
-                else:
-                    max_next_q_values = tf.maximum(max_next_q_values, masked_selected_q)
-            target_q_values = [rew_t_ph + gamma * max_next_q_values] * num_action_streams # TODO better?
-        elif target_version == "mean":
-            for dim in range(num_action_streams):
-                selected_a = tf.argmax(selection_q_tp1[dim], axis=1)
-                selected_q = tf.reduce_sum(tf.one_hot(selected_a, num_actions_pad) * q_tp1[dim], axis=1) 
-                masked_selected_q = (1.0 - done_mask_ph) * selected_q
-                if dim == 0:
-                    mean_next_q_values = masked_selected_q
-                else:
-                    mean_next_q_values += masked_selected_q 
-            mean_next_q_values /= num_action_streams
-            target_q_values = [rew_t_ph + gamma * mean_next_q_values] * num_action_streams # TODO better?
-        else:
-            assert False, 'unsupported target version ' + str(target_version)
+        # target_version = "mean":
+        for dim in range(num_action_streams):
+            selected_a = tf.argmax(selection_q_tp1[dim], axis=1)
+            selected_q = tf.reduce_sum(tf.one_hot(selected_a, num_actions_pad) * q_tp1[dim], axis=1) 
+            masked_selected_q = (1.0 - done_mask_ph) * selected_q
+            if dim == 0:
+                mean_next_q_values = masked_selected_q
+            else:
+                mean_next_q_values += masked_selected_q 
+        mean_next_q_values /= num_action_streams
+        target_q_values = [rew_t_ph + gamma * mean_next_q_values] * num_action_streams # TODO better?
 
         if optimizer_name == "Adam":
             optimizer = tf.train.AdamOptimizer(learning_rate)
@@ -278,7 +258,7 @@ def build_train(make_obs_ph, q_func, num_actions, num_action_streams, batch_size
             optimize_expr = U.minimize_and_clip(optimizer,
                                                 weighted_mean_loss,
                                                 var_list=q_func_vars,
-                                                total_n_streams=(num_action_streams + (1 if dueling else 0)),
+                                                total_n_streams=(num_action_streams + 1),
                                                 clip_val=grad_norm_clipping)
             optimize_expr = [optimize_expr]
 
@@ -295,7 +275,7 @@ def build_train(make_obs_ph, q_func, num_actions, num_action_streams, batch_size
             optimize_expr = U.minimize_and_clip(optimizer,
                                                 weighted_mean_loss,
                                                 var_list=q_func_vars,
-                                                total_n_streams=(num_action_streams + (1 if dueling else 0)),
+                                                total_n_streams=(num_action_streams + 1),
                                                 clip_val=grad_norm_clipping)
             optimize_expr = [optimize_expr]
 
@@ -318,7 +298,7 @@ def build_train(make_obs_ph, q_func, num_actions, num_action_streams, batch_size
                 optimize_expr = U.minimize_and_clip(optimizer,
                                                     mean_loss,
                                                     var_list=q_func_vars,
-                                                    total_n_streams=(num_action_streams + (1 if dueling else 0)),
+                                                    total_n_streams=(num_action_streams + 1),
                                                     clip_val=grad_norm_clipping)
                 optimize_expr = [optimize_expr]
             elif losses_version == 3:
@@ -327,7 +307,7 @@ def build_train(make_obs_ph, q_func, num_actions, num_action_streams, batch_size
                     optimize_expr.append(U.minimize_and_clip(optimizer,
                                                              stream_losses[dim],
                                                              var_list=q_func_vars,
-                                                             total_n_streams=(num_action_streams + (1 if dueling else 0)),
+                                                             total_n_streams=(num_action_streams + 1),
                                                              clip_val=grad_norm_clipping))
             else: # losses_version = 4
                 optimize_expr = []
@@ -339,7 +319,7 @@ def build_train(make_obs_ph, q_func, num_actions, num_action_streams, batch_size
                     optimize_expr.append(U.minimize_and_clip(optimizer, 
                                                              stream_losses[dim],
                                                              var_list=q_func_vars,
-                                                             total_n_streams=(1 if independent else num_action_streams + (1 if dueling else 0)),
+                                                             total_n_streams=(1 if independent else num_action_streams + 1),
                                                              clip_val=grad_norm_clipping))
         else:
             assert False, 'unsupported loss version ' + str(losses_version)

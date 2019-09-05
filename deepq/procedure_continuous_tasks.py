@@ -108,7 +108,6 @@ def learn_continuous_tasks(env,
           eval_freq=100,
           n_eval_episodes=10,
           eval_std=0.01,
-          target_version="mean",
           loss_type="L2", 
           callback=None):
     """Train a branching deepq model to solve continuous control tasks via discretization.
@@ -216,7 +215,6 @@ def learn_continuous_tasks(env,
         reuse=None,
         losses_version=losses_version,
         independent=independent,
-        target_version=target_version,
         loss_type="L2"
     )
     act_params = {
