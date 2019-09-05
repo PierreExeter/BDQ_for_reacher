@@ -99,7 +99,6 @@ def learn_continuous_tasks(env,
           prioritized_replay_beta_iters=None, 
           prioritized_replay_eps=int(1e8),
           independent=False,
-          dueling=True,
           num_cpu=16,
           losses_version=2,
           epsilon_greedy=False,
@@ -173,8 +172,6 @@ def learn_continuous_tasks(env,
         epsilon to add to the unified TD error for updating priorities.
         Erratum: The camera-ready copy of this paper incorrectly reported 1e-8. 
         The value used to produece the results is 1e8.
-    dueling: bool
-        indicates whether we are using the dueling architectures or not
     num_cpu: int
         number of cpus to use for training
     losses_version: int
@@ -219,7 +216,6 @@ def learn_continuous_tasks(env,
         reuse=None,
         losses_version=losses_version,
         independent=independent,
-        dueling=dueling,
         target_version=target_version,
         loss_type="L2"
     )

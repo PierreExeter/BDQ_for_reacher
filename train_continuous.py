@@ -7,7 +7,6 @@ env_name = 'Reacher-v1'
 total_num_episodes = 50
 
 # parameters
-dueling = True # with dueling (best-performing)
 agg_method = 'reduceLocalMean' # naive, reduceLocalMax, reduceLocalMean (best-performing)   
 target_version = 'mean' # indep, max, mean (best-performing)
 losses_version = 2 # 1,2 (best-performing),3,4,5 
@@ -24,7 +23,6 @@ model = deepq.models.mlp_branching(
     hiddens_value=[128],
     independent=independent,
     num_action_branches=env.action_space.shape[0],
-    dueling=dueling,
     aggregator=agg_method  
 )
 
@@ -32,7 +30,6 @@ act = deepq.learn_continuous_tasks(
     env,
     q_func=model,
     env_name=env_name, 
-    # dir_path=os.path.abspath(path_logs),
     time_stamp=time_stamp,
     total_num_episodes=total_num_episodes,
     lr=1e-4,
@@ -43,7 +40,6 @@ act = deepq.learn_continuous_tasks(
     prioritized_replay_alpha=0.6,
     prioritized_replay_beta0=0.4,
     prioritized_replay_beta_iters=2e6,  
-    dueling=dueling,
     independent=independent,
     target_version=target_version,
     losses_version=losses_version,
