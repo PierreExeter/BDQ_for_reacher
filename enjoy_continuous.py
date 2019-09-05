@@ -6,7 +6,7 @@ import deepq
 # Enter environment name and numb sub-actions per joint 
 env_name = 'Reacher-v1'
 num_actions_pad = 33 # ensure it's set correctly to the value used during training   
-model_file_name = '2019-09-05_16-36-29_Reacher-v1.pkl'
+model_file_name = '2019-09-05_17-43-21_Reacher-v1.pkl'
 
 
 
