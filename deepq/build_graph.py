@@ -239,12 +239,12 @@ def build_train(make_obs_ph, q_func, num_actions, num_action_streams, batch_size
         else:
             assert False, 'unsupported optimizer ' + str(optimizer_name)
 
-        if loss_type == "L2":
-            loss_function = tf.square
-        elif loss_type == "Huber":
-            loss_function = U.huber_loss
-        else:
-            assert False, 'unsupported loss type ' + str(loss_type)
+        # if loss_type == "L2":
+        loss_function = tf.square
+        # elif loss_type == "Huber":
+            # loss_function = U.huber_loss
+        # else:
+            # assert False, 'unsupported loss type ' + str(loss_type)
 
         # losses_version = 2:
         stream_losses = []
