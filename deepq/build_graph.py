@@ -191,9 +191,6 @@ def build_train(make_obs_ph, q_func, num_actions, num_action_streams, batch_size
         a bunch of functions to print debug data like q_values.
     """
 
-    # assert independent and losses_version == 4 or not independent, 'independent needs to be used along with loss v4'
-    # assert independent and target_version == "indep" or not independent, 'independent needs to be used along with independent TD targets'
-
     act_f = build_act(make_obs_ph, q_func, num_actions, num_action_streams, scope=scope, reuse=reuse)
 
     with tf.variable_scope(scope, reuse=reuse):
@@ -249,80 +246,27 @@ def build_train(make_obs_ph, q_func, num_actions, num_action_streams, batch_size
         else:
             assert False, 'unsupported loss type ' + str(loss_type)
 
-        if losses_version == 1:
-            mean_q_value = sum(q_values) / num_action_streams
-            mean_target_q_value = sum(target_q_values) / num_action_streams
-            td_error = mean_q_value - tf.stop_gradient(mean_target_q_value)
-            loss = loss_function(td_error)
-            weighted_mean_loss = tf.reduce_mean(importance_weights_ph * loss)
-            optimize_expr = U.minimize_and_clip(optimizer,
-                                                weighted_mean_loss,
-                                                var_list=q_func_vars,
-                                                total_n_streams=(num_action_streams + 1),
-                                                clip_val=grad_norm_clipping)
-            optimize_expr = [optimize_expr]
+        # losses_version = 2:
+        stream_losses = []
+        for dim in range(num_action_streams):
+            dim_td_error = q_values[dim] - tf.stop_gradient(target_q_values[dim])
+            dim_loss = loss_function(dim_td_error)
+            # Scaling of learning based on importance sampling weights is optional, either way works 
+            stream_losses.append(tf.reduce_mean(dim_loss * importance_weights_ph)) # with scaling
+            #stream_losses.append(tf.reduce_mean(dim_loss)) # without scaling 
+            if dim == 0:
+                td_error = tf.abs(dim_td_error)  
+            else:
+                td_error += tf.abs(dim_td_error) 
+        #td_error /= num_action_streams 
 
-        elif losses_version == 5:
-            for dim in range(num_action_streams):
-                abs_dim_td_error = tf.abs(q_values[dim] - tf.stop_gradient(target_q_values[dim]))
-                if dim == 0:
-                    td_error = abs_dim_td_error
-                else:
-                    td_error += abs_dim_td_error
-            td_error /= num_action_streams
-            loss = loss_function(td_error)
-            weighted_mean_loss = tf.reduce_mean(importance_weights_ph * loss)
-            optimize_expr = U.minimize_and_clip(optimizer,
-                                                weighted_mean_loss,
-                                                var_list=q_func_vars,
-                                                total_n_streams=(num_action_streams + 1),
-                                                clip_val=grad_norm_clipping)
-            optimize_expr = [optimize_expr]
-
-        elif losses_version in [2, 3, 4]:
-            stream_losses = []
-            for dim in range(num_action_streams):
-                dim_td_error = q_values[dim] - tf.stop_gradient(target_q_values[dim])
-                dim_loss = loss_function(dim_td_error)
-                # Scaling of learning based on importance sampling weights is optional, either way works 
-                stream_losses.append(tf.reduce_mean(dim_loss * importance_weights_ph)) # with scaling
-                #stream_losses.append(tf.reduce_mean(dim_loss)) # without scaling 
-                if dim == 0:
-                    td_error = tf.abs(dim_td_error)  
-                else:
-                    td_error += tf.abs(dim_td_error) 
-            #td_error /= num_action_streams 
-
-            if losses_version == 2:
-                mean_loss = sum(stream_losses) / num_action_streams
-                optimize_expr = U.minimize_and_clip(optimizer,
-                                                    mean_loss,
-                                                    var_list=q_func_vars,
-                                                    total_n_streams=(num_action_streams + 1),
-                                                    clip_val=grad_norm_clipping)
-                optimize_expr = [optimize_expr]
-            elif losses_version == 3:
-                optimize_expr = []
-                for dim in range(num_action_streams):
-                    optimize_expr.append(U.minimize_and_clip(optimizer,
-                                                             stream_losses[dim],
-                                                             var_list=q_func_vars,
-                                                             total_n_streams=(num_action_streams + 1),
-                                                             clip_val=grad_norm_clipping))
-            else: # losses_version = 4
-                optimize_expr = []
-                for dim in range(num_action_streams):
-                    if optimizer_name == "Adam":
-                        optimizer = tf.train.AdamOptimizer(learning_rate)
-                    else:
-                        assert False, 'optimizer type not supported'
-                    optimize_expr.append(U.minimize_and_clip(optimizer, 
-                                                             stream_losses[dim],
-                                                             var_list=q_func_vars,
-                                                             total_n_streams=(1 if independent else num_action_streams + 1),
-                                                             clip_val=grad_norm_clipping))
-        else:
-            assert False, 'unsupported loss version ' + str(losses_version)
+        mean_loss = sum(stream_losses) / num_action_streams
+        optimize_expr = U.minimize_and_clip(optimizer,
+                                            mean_loss,
+                                            var_list=q_func_vars,
+                                            total_n_streams=(num_action_streams + 1),
+                                            clip_val=grad_norm_clipping)
+        optimize_expr = [optimize_expr]
 
         # Target Q-network parameters are periodically updated with the Q-network's
         update_target_expr = []

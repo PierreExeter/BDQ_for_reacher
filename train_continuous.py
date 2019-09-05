@@ -7,7 +7,6 @@ env_name = 'Reacher-v1'
 total_num_episodes = 50
 
 # parameters
-losses_version = 2 # 1,2 (best-performing),3,4,5 
 num_actions_pad = 33 # numb discrete sub-actions per action dimension
 independent = False # only set to True for trying training without the shared network module (does not work well)
 
@@ -38,7 +37,6 @@ act = deepq.learn_continuous_tasks(
     prioritized_replay_beta0=0.4,
     prioritized_replay_beta_iters=2e6,  
     independent=independent,
-    losses_version=losses_version,
     num_actions_pad=num_actions_pad,
     grad_norm_clipping=10,
     learning_starts=1000, 
