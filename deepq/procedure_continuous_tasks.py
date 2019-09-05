@@ -217,29 +217,19 @@ def learn_continuous_tasks( env,
     }
 
 
-    # Create the replay buffer 
-    if prioritized_replay: 
-        replay_buffer = PrioritizedReplayBuffer(buffer_size, alpha=prioritized_replay_alpha)
-        if prioritized_replay_beta_iters is None:
-            prioritized_replay_beta_iters = max_timesteps
-        beta_schedule = LinearSchedule(prioritized_replay_beta_iters,
-                                       initial_p=prioritized_replay_beta0,
-                                       final_p=1.0)
-    else:
-        replay_buffer = ReplayBuffer(buffer_size)
-        beta_schedule = None
+    # prioritized_replay: create the replay buffer
+    replay_buffer = PrioritizedReplayBuffer(buffer_size, alpha=prioritized_replay_alpha)
+    if prioritized_replay_beta_iters is None:
+        prioritized_replay_beta_iters = max_timesteps
+    beta_schedule = LinearSchedule(prioritized_replay_beta_iters,
+                                   initial_p=prioritized_replay_beta0,
+                                   final_p=1.0)
 
-    if epsilon_greedy:
-        approximate_num_iters = 2e6 / 4
-        exploration = PiecewiseSchedule([(0, 1.0),
-                                        (approximate_num_iters / 50, 0.1), 
-                                        (approximate_num_iters / 5, 0.01) 
-                                        ], outside_value=0.01)
-    else:
-        exploration = ConstantSchedule(value=0.0) # greedy policy
-        std_schedule = LinearSchedule(schedule_timesteps=timesteps_std,
-                                     initial_p=initial_std,
-                                     final_p=final_std)
+    # epsilon_greedy = False: just greedy policy
+    exploration = ConstantSchedule(value=0.0) # greedy policy
+    std_schedule = LinearSchedule(schedule_timesteps=timesteps_std,
+                                 initial_p=initial_std,
+                                 final_p=final_std)
 
     # Initialize the parameters and copy them to the target network.
     U.initialize()

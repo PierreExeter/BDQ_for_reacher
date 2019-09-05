@@ -44,9 +44,7 @@ act = deepq.learn_continuous_tasks(
     eval_std=0.0,
     num_cpu=16,
     print_freq=10, 
-    callback=None 
-)
-
+    callback=None)
 
 print('Saving model...')
 act.save('trained_models/{}_{}.pkl'.format(time_stamp, env_name))
