@@ -134,7 +134,22 @@ def build_act(make_obs_ph, q_func, num_actions, num_action_streams, scope="deepq
         return act
 
 
-def build_train(make_obs_ph, q_func, num_actions, num_action_streams, batch_size, optimizer_name, learning_rate, grad_norm_clipping=None, gamma=0.99, double_q=True, scope="deepq", reuse=None, losses_version=2, independent=False, dueling=True, target_version="mean", loss_type="L2"):
+def build_train(make_obs_ph, 
+        q_func, 
+        num_actions, 
+        num_action_streams, 
+        batch_size, 
+        learning_rate, 
+        grad_norm_clipping=None, 
+        gamma=0.99, 
+        double_q=True, 
+        scope="deepq", 
+        reuse=None, 
+        losses_version=2, 
+        independent=False, 
+        dueling=True, 
+        target_version="mean", 
+        loss_type="L2"):
     """Creates the act function:
 
     Parameters
@@ -210,10 +225,8 @@ def build_train(make_obs_ph, q_func, num_actions, num_action_streams, batch_size
         q_tp1 = q_func(obs_tp1_input.get(), num_actions, scope="target_q_func")
         target_q_func_vars = U.scope_vars(U.absolute_scope_name("target_q_func"))
 
-        if double_q: 
-            selection_q_tp1 = q_func(obs_tp1_input.get(), num_actions, scope="q_func", reuse=True)
-        else: 
-            selection_q_tp1 = q_tp1
+        # double_q learning 
+        selection_q_tp1 = q_func(obs_tp1_input.get(), num_actions, scope="q_func", reuse=True)
 
         num_actions_pad = num_actions//num_action_streams
 
@@ -234,17 +247,11 @@ def build_train(make_obs_ph, q_func, num_actions, num_action_streams, batch_size
         mean_next_q_values /= num_action_streams
         target_q_values = [rew_t_ph + gamma * mean_next_q_values] * num_action_streams # TODO better?
 
-        # if optimizer_name == "Adam":
+        # optimizer_name = "Adam"
         optimizer = tf.train.AdamOptimizer(learning_rate)
-        # else:
-            # assert False, 'unsupported optimizer ' + str(optimizer_name)
 
-        # if loss_type == "L2":
+        # loss_type = "L2"
         loss_function = tf.square
-        # elif loss_type == "Huber":
-            # loss_function = U.huber_loss
-        # else:
-            # assert False, 'unsupported loss type ' + str(loss_type)
 
         # losses_version = 2:
         stream_losses = []

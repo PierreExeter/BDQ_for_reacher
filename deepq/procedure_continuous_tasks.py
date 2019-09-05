@@ -75,7 +75,7 @@ def load(path, num_cpu=1):
 model_saved = False
 max_eval_reward_mean = None
 
-def learn_continuous_tasks(env,
+def learn_continuous_tasks( env,
           q_func,
           env_name,
           time_stamp,
@@ -98,7 +98,6 @@ def learn_continuous_tasks(env,
           prioritized_replay_beta0=0.4,
           prioritized_replay_beta_iters=None, 
           prioritized_replay_eps=int(1e8),
-          independent=False,
           num_cpu=16,
           epsilon_greedy=False,
           timesteps_std=1e6,
@@ -107,7 +106,6 @@ def learn_continuous_tasks(env,
           eval_freq=100,
           n_eval_episodes=10,
           eval_std=0.01,
-          loss_type="L2", 
           callback=None):
     """Train a branching deepq model to solve continuous control tasks via discretization.
     Current assumptions in the implementation: 
@@ -205,15 +203,11 @@ def learn_continuous_tasks(env,
         num_actions=num_actions, 
         num_action_streams=num_action_streams,
         batch_size=batch_size,
-        optimizer_name="Adam",
         learning_rate=lr,
         grad_norm_clipping=grad_norm_clipping,
         gamma=gamma,
-        double_q=True,
         scope="deepq",
-        reuse=None,
-        independent=independent,
-        loss_type="L2"
+        reuse=None
     )
     act_params = {
         'make_obs_ph': make_obs_ph,
@@ -332,7 +326,6 @@ def learn_continuous_tasks(env,
             t = -1
             while True:
                 t += 1
-                #logger.log("Q-values: {}".format(debug["q_values"](np.array([obs])))) 
                 
                 # Select action and update exploration probability
                 action_idxes = np.array(act(np.array(obs)[None], update_eps=exploration.value(t)))
