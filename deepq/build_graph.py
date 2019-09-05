@@ -142,14 +142,8 @@ def build_train(make_obs_ph,
         learning_rate, 
         grad_norm_clipping=None, 
         gamma=0.99, 
-        double_q=True, 
         scope="deepq", 
-        reuse=None, 
-        losses_version=2, 
-        independent=False, 
-        dueling=True, 
-        target_version="mean", 
-        loss_type="L2"):
+        reuse=None):
     """Creates the act function:
 
     Parameters

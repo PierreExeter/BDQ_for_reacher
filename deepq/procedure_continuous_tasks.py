@@ -53,8 +53,7 @@ class ActWrapper(object):
         with open(path, "wb") as f:
             dill.dump((model_data, self._act_params), f)
 
-# def load(path, num_cpu=16):
-def load(path, num_cpu=1):
+def load(path, num_cpu=16):
     """Load act function that was returned by learn function.
 
     Parameters
@@ -85,21 +84,17 @@ def learn_continuous_tasks( env,
           grad_norm_clipping=10,
           max_timesteps=int(1e8),
           buffer_size=int(1e6),
-          exploration_fraction=None, 
-          exploration_final_eps=None, 
           train_freq=1,
           batch_size=64,
           print_freq=10,
           learning_starts=1000,
           gamma=0.99,
           target_network_update_freq=500,
-          prioritized_replay=False,
           prioritized_replay_alpha=0.6,
           prioritized_replay_beta0=0.4,
-          prioritized_replay_beta_iters=None, 
+          prioritized_replay_beta_iters=2e6, 
           prioritized_replay_eps=int(1e8),
           num_cpu=16,
-          epsilon_greedy=False,
           timesteps_std=1e6,
           initial_std=0.4,
           final_std=0.05,
@@ -219,8 +214,6 @@ def learn_continuous_tasks( env,
 
     # prioritized_replay: create the replay buffer
     replay_buffer = PrioritizedReplayBuffer(buffer_size, alpha=prioritized_replay_alpha)
-    if prioritized_replay_beta_iters is None:
-        prioritized_replay_beta_iters = max_timesteps
     beta_schedule = LinearSchedule(prioritized_replay_beta_iters,
                                    initial_p=prioritized_replay_beta0,
                                    final_p=1.0)
@@ -323,27 +316,27 @@ def learn_continuous_tasks( env,
                 # Convert sub-actions indexes (discrete sub-actions) to continuous controls
                 action = action_idxes / num_action_grains * actions_range + low
                 
-                if not epsilon_greedy: # Gaussian noise
-                    actions_greedy = action
-                    action_idx_stoch = []
-                    action = []
-                    for index in range(len(actions_greedy)): 
-                        a_greedy = actions_greedy[index]
-                        out_of_range_action = True 
-                        while out_of_range_action:
-                            # Sample from a Gaussian with mean at the greedy action and a std following a schedule of choice  
-                            a_stoch = np.random.normal(loc=a_greedy, scale=std_schedule.value(t))
+                # epsilon_greedy = False: use Gaussian noise
+                actions_greedy = action
+                action_idx_stoch = []
+                action = []
+                for index in range(len(actions_greedy)): 
+                    a_greedy = actions_greedy[index]
+                    out_of_range_action = True 
+                    while out_of_range_action:
+                        # Sample from a Gaussian with mean at the greedy action and a std following a schedule of choice  
+                        a_stoch = np.random.normal(loc=a_greedy, scale=std_schedule.value(t))
 
-                            # Convert sampled cont action to an action idx
-                            a_idx_stoch = np.rint((a_stoch + high[index]) / actions_range[index] * num_action_grains)
+                        # Convert sampled cont action to an action idx
+                        a_idx_stoch = np.rint((a_stoch + high[index]) / actions_range[index] * num_action_grains)
 
-                            # Check if action is in range
-                            if a_idx_stoch >= 0 and a_idx_stoch < num_actions_pad:
-                                action_idx_stoch.append(a_idx_stoch)
-                                action.append(a_stoch)
-                                out_of_range_action = False
+                        # Check if action is in range
+                        if a_idx_stoch >= 0 and a_idx_stoch < num_actions_pad:
+                            action_idx_stoch.append(a_idx_stoch)
+                            action.append(a_stoch)
+                            out_of_range_action = False
 
-                    action_idxes = action_idx_stoch
+                action_idxes = action_idx_stoch
 
                 new_obs, rew, done, _ = env.step(action)
 
@@ -391,16 +384,15 @@ def learn_continuous_tasks( env,
 
                 if t > learning_starts and t % train_freq == 0:
                     # Minimize the error in Bellman's equation on a batch sampled from replay buffer
-                    if prioritized_replay:
-                        experience = replay_buffer.sample(batch_size, beta=beta_schedule.value(t))
-                        (obses_t, actions, rewards, obses_tp1, dones, weights, batch_idxes) = experience
-                    else:
-                        obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(batch_size)
-                        weights, batch_idxes = np.ones_like(rewards), None
+                    # prioritized_replay
+                    experience = replay_buffer.sample(batch_size, beta=beta_schedule.value(t))
+                    (obses_t, actions, rewards, obses_tp1, dones, weights, batch_idxes) = experience
+                    
                     td_errors = train(obses_t, actions, rewards, obses_tp1, dones, weights) #np.ones_like(rewards)) #TEMP AT NEW
-                    if prioritized_replay:
-                        new_priorities = np.abs(td_errors) + prioritized_replay_eps
-                        replay_buffer.update_priorities(batch_idxes, new_priorities)
+                    
+                    # prioritized_replay
+                    new_priorities = np.abs(td_errors) + prioritized_replay_eps
+                    replay_buffer.update_priorities(batch_idxes, new_priorities)
 
                     n_trainings += 1
 

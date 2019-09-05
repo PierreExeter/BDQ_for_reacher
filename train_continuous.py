@@ -27,7 +27,6 @@ act = deepq.learn_continuous_tasks(
     gamma=0.99,
     batch_size=64,
     buffer_size=int(1e6),
-    prioritized_replay=True,
     prioritized_replay_alpha=0.6,
     prioritized_replay_beta0=0.4,
     prioritized_replay_beta_iters=2e6,  

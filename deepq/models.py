@@ -2,7 +2,16 @@ import tensorflow as tf
 import tensorflow.contrib.layers as layers
 import numpy as np
 
-def _mlp_branching(hiddens_common, hiddens_actions, hiddens_value, independent, num_action_branches, dueling, aggregator, distributed_single_stream, inpt, num_actions, scope, reuse=False):
+def _mlp_branching(hiddens_common, 
+        hiddens_actions, 
+        hiddens_value, 
+        num_action_branches, 
+        distributed_single_stream, 
+        inpt, 
+        num_actions, 
+        scope, 
+        reuse=False):
+
     with tf.variable_scope(scope, reuse=reuse):
         out = inpt
 
@@ -55,7 +64,11 @@ def _mlp_branching(hiddens_common, hiddens_actions, hiddens_value, independent, 
         return [state_score + action_score_adjusted for action_score_adjusted in action_scores_adjusted]
 
    
-def mlp_branching(hiddens_common=[], hiddens_actions=[], hiddens_value=[], independent=False, num_action_branches=None, dueling=True, aggregator='reduceLocalMean', distributed_single_stream=False):
+def mlp_branching(hiddens_common=[], 
+        hiddens_actions=[], 
+        hiddens_value=[], 
+        num_action_branches=None, 
+        distributed_single_stream=False):
     """This model takes as input an observation and returns values of all sub-actions -- either by 
     combining the state value and the sub-action advantages (i.e. dueling), or directly the Q-values.
     
@@ -93,7 +106,7 @@ def mlp_branching(hiddens_common=[], hiddens_actions=[], hiddens_value=[], indep
     q_func: function
         q_function for DQN algorithm.
     """
-    return lambda *args, **kwargs: _mlp_branching(hiddens_common, hiddens_actions, hiddens_value, independent, num_action_branches, dueling, aggregator, distributed_single_stream, *args, **kwargs)
+    return lambda *args, **kwargs: _mlp_branching(hiddens_common, hiddens_actions, hiddens_value, num_action_branches, distributed_single_stream, *args, **kwargs)
 
 
 def _mlp(hiddens, inpt, num_actions, scope, reuse=False):
@@ -120,7 +133,7 @@ def mlp(hiddens=[]):
     return lambda *args, **kwargs: _mlp(hiddens, *args, **kwargs)
 
 
-def _cnn_to_mlp(convs, hiddens, dueling, inpt, num_actions, scope, reuse=False):
+def _cnn_to_mlp(convs, hiddens, inpt, num_actions, scope, reuse=False):
     with tf.variable_scope(scope, reuse=reuse):
         out = inpt
         with tf.variable_scope("convnet"):
@@ -148,7 +161,7 @@ def _cnn_to_mlp(convs, hiddens, dueling, inpt, num_actions, scope, reuse=False):
         return state_score + action_scores_centered
         return out
 
-def cnn_to_mlp(convs, hiddens, dueling=False):
+def cnn_to_mlp(convs, hiddens):
     """This model takes as input an observation and returns values of all actions.
 
     Parameters
@@ -168,10 +181,10 @@ def cnn_to_mlp(convs, hiddens, dueling=False):
         q_function for DQN algorithm.
     """
 
-    return lambda *args, **kwargs: _cnn_to_mlp(convs, hiddens, dueling, *args, **kwargs)
+    return lambda *args, **kwargs: _cnn_to_mlp(convs, hiddens, *args, **kwargs)
 
 
-def _mlp_duel(hiddens_common, hiddens, dueling, inpt, num_actions, scope, reuse=False):
+def _mlp_duel(hiddens_common, hiddens, inpt, num_actions, scope, reuse=False):
     with tf.variable_scope(scope, reuse=reuse):
         out = inpt
         with tf.variable_scope("common_net"):
@@ -197,7 +210,7 @@ def _mlp_duel(hiddens_common, hiddens, dueling, inpt, num_actions, scope, reuse=
         return state_score + action_scores_centered
         return out
 
-def mlp_duel(hiddens_common=[],hiddens=[], dueling=True):
+def mlp_duel(hiddens_common=[],hiddens=[]):
     """This model takes as input an observation and returns values of all actions
     by combining value of state and advantages of actions at that state. 
 
@@ -214,4 +227,4 @@ def mlp_duel(hiddens_common=[],hiddens=[], dueling=True):
     q_func: function
         q_function for DQN algorithm.
     """
-    return lambda *args, **kwargs: _mlp_duel(hiddens_common, hiddens, dueling, *args, **kwargs)
+    return lambda *args, **kwargs: _mlp_duel(hiddens_common, hiddens, *args, **kwargs)
