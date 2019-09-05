@@ -6,100 +6,54 @@ def _mlp_branching(hiddens_common, hiddens_actions, hiddens_value, independent, 
     with tf.variable_scope(scope, reuse=reuse):
         out = inpt
 
-        if num_action_branches < 2 and independent: 
-            assert False, 'independent only makes sense when there are more than one action dimension'
-
         # Create the shared network module (unless independent)
         with tf.variable_scope('common_net'):
-            if not independent: 
-                for hidden in hiddens_common:
-                    out = layers.fully_connected(out, num_outputs=hidden, activation_fn=tf.nn.relu)
-            else: 
-                if hiddens_common != []:
-                    total_indep_common_out = []
-                    for action_stream in range(num_action_branches):
-                        indep_common_out = out
-                        for hidden in hiddens_common:
-                            indep_common_out = layers.fully_connected(indep_common_out, num_outputs=hidden, activation_fn=tf.nn.relu)
-                        total_indep_common_out.append(indep_common_out)
-                    out = total_indep_common_out
-                else:
-                    out = [out] * num_action_branches
+            # independent = false: 
+            for hidden in hiddens_common:
+                out = layers.fully_connected(out, num_outputs=hidden, activation_fn=tf.nn.relu)
                 
         # Create the action branches
         with tf.variable_scope('action_value'):
-            if not independent:
-                if (not distributed_single_stream or num_action_branches == 1):
-                    total_action_scores = []
-                    for action_stream in range(num_action_branches):
-                        action_out = out
-                        for hidden in hiddens_actions:
-                            action_out = layers.fully_connected(action_out, num_outputs=hidden, activation_fn=tf.nn.relu)    
-                        action_scores = layers.fully_connected(action_out, num_outputs=num_actions//num_action_branches, activation_fn=None)
-                        # dueling
-                        # aggregator = 'reduceLocalMean':
-                        action_scores_mean = tf.reduce_mean(action_scores, 1)
-                        total_action_scores.append(action_scores - tf.expand_dims(action_scores_mean, 1))
-                elif distributed_single_stream: # TODO better: implementation of single-stream case
+            # independent = false
+            if (not distributed_single_stream or num_action_branches == 1):
+                total_action_scores = []
+                for action_stream in range(num_action_branches):
                     action_out = out
                     for hidden in hiddens_actions:
                         action_out = layers.fully_connected(action_out, num_outputs=hidden, activation_fn=tf.nn.relu)    
-                    action_scores = layers.fully_connected(action_out, num_outputs=num_actions, activation_fn=None)
+                    action_scores = layers.fully_connected(action_out, num_outputs=num_actions//num_action_branches, activation_fn=None)
                     # dueling
                     # aggregator = 'reduceLocalMean':
-                    total_action_scores = []
-                    for action_stream in range(num_action_branches):
-                        # Slice action values (or advantages) of each action dimension and locally subtract their mean
-                        sliced_actions_of_dim = tf.slice(action_scores, [0,action_stream*num_actions//num_action_branches], [-1,num_actions//num_action_branches])
-                        sliced_actions_mean = tf.reduce_mean(sliced_actions_of_dim, 1)
-                        sliced_actions_centered = sliced_actions_of_dim - tf.expand_dims(sliced_actions_mean, 1)
-                        total_action_scores.append(sliced_actions_centered)
-            else:
-                if (not distributed_single_stream or num_action_branches == 1):
-                    total_action_scores = []
-                    for action_stream in range(num_action_branches):
-                        action_out = total_indep_common_out[action_stream] 
-                        for hidden in hiddens_actions:
-                            action_out = layers.fully_connected(action_out, num_outputs=hidden, activation_fn=tf.nn.relu)    
-                        action_scores = layers.fully_connected(action_out, num_outputs=num_actions//num_action_branches, activation_fn=None)
-                        # dueling
-                        # aggregator = 'reduceLocalMean':
-                        action_scores_mean = tf.reduce_mean(action_scores, 1)
-                        total_action_scores.append(action_scores - tf.expand_dims(action_scores_mean, 1))
-                elif distributed_single_stream: # TODO better: implementation of single-stream case    
-                    pass 
+                    action_scores_mean = tf.reduce_mean(action_scores, 1)
+                    total_action_scores.append(action_scores - tf.expand_dims(action_scores_mean, 1))
+            elif distributed_single_stream: # TODO better: implementation of single-stream case
+                action_out = out
+                for hidden in hiddens_actions:
+                    action_out = layers.fully_connected(action_out, num_outputs=hidden, activation_fn=tf.nn.relu)    
+                action_scores = layers.fully_connected(action_out, num_outputs=num_actions, activation_fn=None)
+                # dueling
+                # aggregator = 'reduceLocalMean':
+                total_action_scores = []
+                for action_stream in range(num_action_branches):
+                    # Slice action values (or advantages) of each action dimension and locally subtract their mean
+                    sliced_actions_of_dim = tf.slice(action_scores, [0,action_stream*num_actions//num_action_branches], [-1,num_actions//num_action_branches])
+                    sliced_actions_mean = tf.reduce_mean(sliced_actions_of_dim, 1)
+                    sliced_actions_centered = sliced_actions_of_dim - tf.expand_dims(sliced_actions_mean, 1)
+                    total_action_scores.append(sliced_actions_centered)
         
         # dueling # create a separate state-value branch
-        if not independent: 
-            with tf.variable_scope('state_value'):
-                state_out = out
-                for hidden in hiddens_value:
-                    state_out = layers.fully_connected(state_out, num_outputs=hidden, activation_fn=tf.nn.relu)
-                state_score = layers.fully_connected(state_out, num_outputs=1, activation_fn=None)
-            # aggregator = 'reduceLocalMean': 
-            # Local centering wrt branch's mean value has already been done
-            action_scores_adjusted = total_action_scores
-            
-            return [state_score + action_score_adjusted for action_score_adjusted in action_scores_adjusted]
+        # independent = False: 
+        with tf.variable_scope('state_value'):
+            state_out = out
+            for hidden in hiddens_value:
+                state_out = layers.fully_connected(state_out, num_outputs=hidden, activation_fn=tf.nn.relu)
+            state_score = layers.fully_connected(state_out, num_outputs=1, activation_fn=None)
+        # aggregator = 'reduceLocalMean': 
+        # Local centering wrt branch's mean value has already been done
+        action_scores_adjusted = total_action_scores
+        
+        return [state_score + action_score_adjusted for action_score_adjusted in action_scores_adjusted]
 
-        elif independent and num_action_branches > 1:               
-            with tf.variable_scope('state_value'):
-                total_state_scores = []
-                for action_stream in range(num_action_branches):
-                    state_out = total_indep_common_out[action_stream] 
-                    for hidden in hiddens_value:
-                        state_out = layers.fully_connected(state_out, num_outputs=hidden, activation_fn=tf.nn.relu)
-                    state_score = layers.fully_connected(state_out, num_outputs=1, activation_fn=None)
-                    total_state_scores.append(state_score)
-                # aggregator = 'reduceLocalMean': 
-                action_scores_adjusted = total_action_scores # local centering wrt branch's mean value has already been done
-
-                q_values_out = []
-                num_actions_pad = num_actions//num_action_branches
-                for action_stream in range(num_action_branches):
-                    for a_score in action_scores_adjusted[action_stream*num_actions_pad:num_actions_pad*(num_action_branches+1)]: 
-                        q_values_out.append(total_state_scores[action_stream] + a_score)
-            return q_values_out
    
 def mlp_branching(hiddens_common=[], hiddens_actions=[], hiddens_value=[], independent=False, num_action_branches=None, dueling=True, aggregator='reduceLocalMean', distributed_single_stream=False):
     """This model takes as input an observation and returns values of all sub-actions -- either by 

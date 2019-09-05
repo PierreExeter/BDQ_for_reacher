@@ -4,13 +4,9 @@ import deepq
 
 # Set environment and number of training episodes
 env_name = 'Reacher-v1'
-total_num_episodes = 50
-
-# parameters
-num_actions_pad = 33 # numb discrete sub-actions per action dimension
-independent = False # only set to True for trying training without the shared network module (does not work well)
-
 env = gym.make(env_name)
+total_num_episodes = 50
+num_actions_pad = 33 # numb discrete sub-actions per action dimension
 
 time_stamp = time.strftime('%Y-%m-%d_%H-%M-%S') 
 
@@ -18,7 +14,6 @@ model = deepq.models.mlp_branching(
     hiddens_common=[512, 256], 
     hiddens_actions=[128],  
     hiddens_value=[128],
-    independent=independent,
     num_action_branches=env.action_space.shape[0]
 )
 
@@ -36,7 +31,6 @@ act = deepq.learn_continuous_tasks(
     prioritized_replay_alpha=0.6,
     prioritized_replay_beta0=0.4,
     prioritized_replay_beta_iters=2e6,  
-    independent=independent,
     num_actions_pad=num_actions_pad,
     grad_norm_clipping=10,
     learning_starts=1000, 
