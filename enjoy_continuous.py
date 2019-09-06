@@ -7,7 +7,7 @@ env_name = 'Reacher-v1'
 env = gym.make(env_name)
 num_actions_pad = 33 # number of subaction per joints. Ensure it's set correctly to the value used during training   
 
-model_file_name = '2019-09-05_17-52-24_Reacher-v1.pkl'
+model_file_name = '2019-09-06_10-37-46_Reacher-v1.pkl'
 act = deepq.load("trained_models/{}".format(model_file_name))
 
 num_action_dims = env.action_space.shape[0] 

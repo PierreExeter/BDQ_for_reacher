@@ -5,7 +5,7 @@ import deepq
 # Set environment and number of training episodes
 env_name = 'Reacher-v1'
 env = gym.make(env_name)
-total_num_episodes = 50
+total_num_episodes = 20000
 num_actions_pad = 33 # numb discrete sub-actions per action dimension
 
 time_stamp = time.strftime('%Y-%m-%d_%H-%M-%S') 
