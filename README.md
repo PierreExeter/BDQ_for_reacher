@@ -1,6 +1,6 @@
-# BDQ_for_reacher
+# Branching Dueling Q-Network
 
-A deep reinforcement learning algorithm is used to solve the reacher (6 Degrees of Freedom) benchmark problem. 
+A deep reinforcement learning algorithm is used to solve the reacher benchmark problem. 
 
 The Branching Dueling Q-Network (BDQ) is a branching variant of the Dueling Double Deep Q-Network (Dueling DDQN).
 The code was adapted (and simplified) from 
