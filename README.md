@@ -8,10 +8,12 @@ The code was adapted (and simplified) from [here](https://github.com/atavakol/ac
 ## Supporting video
 
 2 DOF reacher after 20,000 training episodes:
+
 [![IMAGE ALT TEXT HERE](http://img.youtube.com/vi/bh0N1RJ8adA/0.jpg)](http://www.youtube.com/watch?v=LFsdrXT47Ho)
 ![alt text](plots/2019-09-06_10-37-46_Reacher-v1_eval.png)
 
 6 DOF reacher after 100,000 training episodes:
+
 [![IMAGE ALT TEXT HERE](http://img.youtube.com/vi/LFsdrXT47Ho/0.jpg)](http://www.youtube.com/watch?v=LFsdrXT47Ho)
 ![alt text](plots/Reacher6DOF_100000ep.png)
 
